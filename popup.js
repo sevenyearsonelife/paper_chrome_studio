@@ -7,20 +7,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Check if we have previously saved questions to display
   loadSavedQuestions();
 
-  // Add click event listeners to the buttons
-  document.getElementById('paperAnalysisBtn').addEventListener('click', function() {
-    copyToClipboard(paperAnalysisPrompt);
+  // Add click event listeners to the clickable prompt spans
+  document.getElementById('paperAnalysisPrompt').addEventListener('click', function() {
+    copyToClipboard(this.textContent); // Use textContent of the clicked span
     ensureContentScriptLoaded().then(() => {
-      sendPromptToTab(paperAnalysisPrompt);
+      sendPromptToTab(this.textContent); // Use textContent of the clicked span
     }).catch(error => {
       alert(`无法连接到 Google AI Studio: ${error.message}`);
     });
   });
 
-  document.getElementById('keyQuestionsBtn').addEventListener('click', function() {
-    copyToClipboard(keyQuestionsPrompt);
+  document.getElementById('keyQuestionsPrompt').addEventListener('click', function() {
+    copyToClipboard(this.textContent); // Use textContent of the clicked span
     ensureContentScriptLoaded().then(() => {
-      sendPromptToTab(keyQuestionsPrompt);
+      sendPromptToTab(this.textContent); // Use textContent of the clicked span
     }).catch(error => {
       alert(`无法连接到 Google AI Studio: ${error.message}`);
     });

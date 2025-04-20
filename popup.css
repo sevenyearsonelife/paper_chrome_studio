@@ -228,10 +228,26 @@ h3 {
 }
 
 .copy-note {
-  font-size: 12px;
-  color: #388e3c;
-  margin-top: 10px;
-  margin-bottom: 0;
-  text-align: center;
-  font-style: italic;
-} 
+  font-size: 0.8em;
+  color: green;
+  margin-top: 5px;
+}
+
+.clickable-prompt {
+  cursor: pointer;
+  display: block;
+  padding: 5px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.clickable-prompt:hover {
+  background-color: #f0f0f0;
+}
+
+/* Specific style for Paper Analysis prompt */
+#paperAnalysisPrompt {
+  max-height: 3.5em; /* Limit height to roughly 2 lines */
+  overflow-y: auto;  /* Enable vertical scrollbar if needed */
+  padding-right: 5px; /* Add some padding for the scrollbar */
+}
