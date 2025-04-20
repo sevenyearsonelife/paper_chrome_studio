@@ -22,6 +22,23 @@
       </div>
       <button class="prompt-button" id="keyQuestionsBtn">Use This Prompt</button>
     </div>
+    <div class="prompt-container">
+      <h2>Extract Questions</h2>
+      <p class="description">从AI Studio的回复中提取10个问题 (需要先运行Key Questions提示)</p>
+      <div class="usage-instructions">
+        <ol>
+          <li>首先点击上方"Key Questions"按钮</li>
+          <li>等待AI回复生成10个问题</li>
+          <li>然后点击下方"Extract Questions"按钮</li>
+        </ol>
+      </div>
+      <button class="prompt-button" id="extractQuestionsBtn">Extract Questions</button>
+      <div id="extractedQuestions" class="extracted-questions-container" style="display: none;">
+        <h3>提取的问题:</h3>
+        <ol id="questionsList"></ol>
+        <p class="copy-note">已自动复制到剪贴板</p>
+      </div>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

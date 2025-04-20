@@ -14,6 +14,68 @@ document.addEventListener('DOMContentLoaded', function() {
     copyToClipboard(keyQuestionsPrompt);
     sendPromptToTab(keyQuestionsPrompt);
   });
+  
+  // Add click event listener for the Extract Questions button
+  document.getElementById('extractQuestionsBtn').addEventListener('click', function() {
+    extractQuestions();
+  });
+
+  // Function to extract questions from the AI Studio response
+  function extractQuestions() {
+    // Show extraction status
+    const questionsList = document.getElementById('questionsList');
+    questionsList.innerHTML = '<li>正在提取问题，请稍候...</li>';
+    document.getElementById('extractedQuestions').style.display = 'block';
+    
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs || tabs.length === 0) {
+        showExtractionError("无法访问当前标签页");
+        return;
+      }
+      
+      try {
+        chrome.tabs.sendMessage(tabs[0].id, {action: "extractQuestions"}, function(response) {
+          // Check for error from Chrome runtime
+          if (chrome.runtime.lastError) {
+            console.error("Chrome runtime error:", chrome.runtime.lastError);
+            showExtractionError("通信错误: " + chrome.runtime.lastError.message);
+            return;
+          }
+          
+          // Check for valid response
+          if (response && response.questions && response.questions.length > 0) {
+            // Display the extracted questions
+            questionsList.innerHTML = ''; // Clear previous questions
+            
+            response.questions.forEach(question => {
+              const li = document.createElement('li');
+              li.innerHTML = question;
+              questionsList.appendChild(li);
+            });
+            
+            // Copy all questions to clipboard as plain text
+            const plainTextQuestions = response.questions.map((q, index) => 
+              `${index + 1}. ${q.replace(/<\/?b>/g, '')}`
+            ).join('\n\n');
+            
+            copyToClipboard(plainTextQuestions);
+          } else {
+            showExtractionError("未找到问题。请确保您已运行了'Key Questions'提示并收到了包含10个问题的响应。");
+          }
+        });
+      } catch (error) {
+        console.error("Error sending message:", error);
+        showExtractionError("发送消息时出错: " + error.message);
+      }
+    });
+  }
+  
+  // Function to show extraction error
+  function showExtractionError(message) {
+    const questionsList = document.getElementById('questionsList');
+    questionsList.innerHTML = `<li style="color: red;">${message}</li>`;
+    document.getElementById('extractedQuestions').style.display = 'block';
+  }
 
   // Function to copy text to clipboard
   function copyToClipboard(text) {
