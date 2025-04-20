@@ -4,10 +4,27 @@ document.addEventListener('DOMContentLoaded', function() {
   
   const keyQuestionsPrompt = `我正在使用AI辅助阅读这篇学术论文。为了帮助我更深入地理解论文的核心思想、方法和贡献，请列举出10个最关键的问题，这些问题应当能引导我全面把握论文的内容和意义。`;
 
+  // Tab Switching Logic
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Deactivate all buttons and panels
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabPanels.forEach(panel => panel.classList.remove('active'));
+
+      // Activate the clicked button and corresponding panel
+      button.classList.add('active');
+      const tabId = button.getAttribute('data-tab');
+      document.getElementById(tabId).classList.add('active');
+    });
+  });
+
   // Check if we have previously saved questions to display
   loadSavedQuestions();
 
-  // Add click event listeners to the clickable prompt spans
+  // Add click event listeners for built-in prompts
   document.getElementById('paperAnalysisPrompt').addEventListener('click', function() {
     copyToClipboard(this.textContent); // Use textContent of the clicked span
     ensureContentScriptLoaded().then(() => {
@@ -61,6 +78,12 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.local.get(['extractedQuestions', 'plainTextQuestions'], function(result) {
       if (result.extractedQuestions && result.extractedQuestions.length > 0) {
         displaySavedQuestions(result.extractedQuestions, result.plainTextQuestions || []);
+        // Optionally switch to the extracted questions tab if questions are loaded
+        // uncomment the following lines if you want this behavior
+        // tabButtons.forEach(btn => btn.classList.remove('active'));
+        // tabPanels.forEach(panel => panel.classList.remove('active'));
+        // document.querySelector('.tab-button[data-tab="extracted"]').classList.add('active');
+        // document.getElementById('extracted').classList.add('active');
       }
     });
   }
@@ -95,16 +118,18 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    // Add the notes
-    if (document.querySelector('.clickable-note') === null) {
-      const note = document.createElement('p');
-      note.className = 'clickable-note';
-      note.textContent = '点击任意问题可将其发送到AI Studio';
-      document.getElementById('extractedQuestions').appendChild(note);
+    // Ensure the note is appended within the correct container in the extracted tab
+    const extractedQuestionsContainer = document.getElementById('extractedQuestions');
+    if (extractedQuestionsContainer.querySelector('.clickable-note') === null) {
+        const note = document.createElement('p');
+        note.className = 'clickable-note';
+        note.textContent = '点击任意问题可将其发送到AI Studio';
+        // Append note inside the container, before the copy-note if it exists
+        const copyNote = extractedQuestionsContainer.querySelector('.copy-note');
+        extractedQuestionsContainer.insertBefore(note, copyNote);
     }
-    
     // Show the questions container
-    document.getElementById('extractedQuestions').style.display = 'block';
+    extractedQuestionsContainer.style.display = 'block';
   }
 
   // Function to ensure content script is loaded before proceeding
@@ -156,10 +181,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Function to extract questions from the AI Studio response
   function extractQuestions() {
-    // Show extraction status
+    // Ensure status/errors are shown in the correct container
     const questionsList = document.getElementById('questionsList');
+    const extractedContainer = document.getElementById('extractedQuestions');
     questionsList.innerHTML = '<li><span class="question-content">正在提取问题，请稍候...</span></li>';
-    document.getElementById('extractedQuestions').style.display = 'block';
+    extractedContainer.style.display = 'block'; // Make sure container is visible
     
     // First ensure the content script is loaded
     ensureContentScriptLoaded().then(tab => {
@@ -237,9 +263,11 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Function to show extraction error
   function showExtractionError(message) {
+    // Ensure error is shown in the correct container
     const questionsList = document.getElementById('questionsList');
+    const extractedContainer = document.getElementById('extractedQuestions');
     questionsList.innerHTML = `<li class="formatted-question" style="color: red;"><span class="question-content">${message}</span></li>`;
-    document.getElementById('extractedQuestions').style.display = 'block';
+    extractedContainer.style.display = 'block'; // Make sure container is visible
   }
 
   // Function to copy text to clipboard
