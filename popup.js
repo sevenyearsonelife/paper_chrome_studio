@@ -6,12 +6,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Add click event listeners to the buttons
   document.getElementById('paperAnalysisBtn').addEventListener('click', function() {
+    copyToClipboard(paperAnalysisPrompt);
     sendPromptToTab(paperAnalysisPrompt);
   });
 
   document.getElementById('keyQuestionsBtn').addEventListener('click', function() {
+    copyToClipboard(keyQuestionsPrompt);
     sendPromptToTab(keyQuestionsPrompt);
   });
+
+  // Function to copy text to clipboard
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(
+      function() {
+        console.log('Prompt copied to clipboard successfully');
+      },
+      function(err) {
+        console.error('Could not copy prompt to clipboard: ', err);
+      }
+    );
+  }
 
   // Function to send the prompt to the active tab
   function sendPromptToTab(promptText) {
