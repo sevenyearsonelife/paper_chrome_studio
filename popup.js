@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   const keyQuestionsPrompt = `我正在使用AI辅助阅读这篇学术论文。为了帮助我更深入地理解论文的核心思想、方法和贡献，请列举出10个最关键的问题，这些问题应当能引导我全面把握论文的内容和意义。`;
 
+  // Check if we have previously saved questions to display
+  loadSavedQuestions();
+
   // Add click event listeners to the buttons
   document.getElementById('paperAnalysisBtn').addEventListener('click', function() {
     copyToClipboard(paperAnalysisPrompt);
@@ -27,6 +30,82 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('extractQuestionsBtn').addEventListener('click', function() {
     extractQuestions();
   });
+  
+  // Add click event listener for the Clear Questions button
+  document.getElementById('clearQuestionsBtn').addEventListener('click', function() {
+    clearSavedQuestions();
+  });
+
+  // Function to clear saved questions
+  function clearSavedQuestions() {
+    // Clear from Chrome storage
+    chrome.storage.local.remove(['extractedQuestions', 'plainTextQuestions'], function() {
+      console.log('Questions cleared from storage');
+      
+      // Hide the questions container
+      document.getElementById('extractedQuestions').style.display = 'none';
+      
+      // Clear the questions list
+      document.getElementById('questionsList').innerHTML = '';
+    });
+  }
+
+  // Function to remove number prefix from question text
+  function removeNumberPrefix(text) {
+    // Remove number prefix like "1. ", "2. ", etc.
+    return text.replace(/^\s*\d+\.\s*/, '');
+  }
+
+  // Function to load saved questions from Chrome storage
+  function loadSavedQuestions() {
+    chrome.storage.local.get(['extractedQuestions', 'plainTextQuestions'], function(result) {
+      if (result.extractedQuestions && result.extractedQuestions.length > 0) {
+        displaySavedQuestions(result.extractedQuestions, result.plainTextQuestions || []);
+      }
+    });
+  }
+
+  // Function to display saved questions
+  function displaySavedQuestions(htmlQuestions, plainTextQuestions) {
+    const questionsList = document.getElementById('questionsList');
+    questionsList.innerHTML = ''; // Clear any existing content
+    
+    htmlQuestions.forEach((questionHtml, index) => {
+      const li = document.createElement('li');
+      li.innerHTML = questionHtml;
+      li.className = 'formatted-question clickable-question';
+      questionsList.appendChild(li);
+      
+      // Add click event to send this question to the AI Studio
+      li.addEventListener('click', function() {
+        // Get the plain text question if available, otherwise extract it from HTML
+        let plainText = plainTextQuestions[index] || questionHtml.replace(/<[^>]*>/g, '');
+        
+        // Remove number prefix from the question text
+        plainText = removeNumberPrefix(plainText);
+        
+        const questionToSend = `${plainText}`;
+        copyToClipboard(questionToSend);
+        
+        ensureContentScriptLoaded().then(tab => {
+          sendPromptToTab(questionToSend);
+        }).catch(error => {
+          alert(`无法连接到 Google AI Studio: ${error.message}`);
+        });
+      });
+    });
+    
+    // Add the notes
+    if (document.querySelector('.clickable-note') === null) {
+      const note = document.createElement('p');
+      note.className = 'clickable-note';
+      note.textContent = '点击任意问题可将其发送到AI Studio';
+      document.getElementById('extractedQuestions').appendChild(note);
+    }
+    
+    // Show the questions container
+    document.getElementById('extractedQuestions').style.display = 'block';
+  }
 
   // Function to ensure content script is loaded before proceeding
   function ensureContentScriptLoaded() {
@@ -94,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Check for valid response
-        if (response && response.questions && response.questions.length > 0) {
+        if (response && response.status === "ok" && response.questions && response.questions.length > 0) {
           // Display the extracted questions
           questionsList.innerHTML = ''; // Clear previous questions
           
@@ -109,11 +188,14 @@ document.addEventListener('DOMContentLoaded', function() {
             questionsList.appendChild(li);
             
             // Extract plain text for this question (without HTML tags)
-            const plainText = question.replace(/<[^>]*>/g, '');
+            let plainText = question.replace(/<[^>]*>/g, '');
             plainTextQuestions.push(plainText);
             
             // Add click event to send this question to the AI Studio
             li.addEventListener('click', function() {
+              // Remove number prefix from the question text
+              plainText = removeNumberPrefix(plainText);
+              
               const questionToSend = `${plainText}`;
               copyToClipboard(questionToSend);
               
@@ -129,11 +211,21 @@ document.addEventListener('DOMContentLoaded', function() {
           const note = document.createElement('p');
           note.className = 'clickable-note';
           note.textContent = '点击任意问题可将其发送到AI Studio';
-          questionsList.parentNode.insertBefore(note, document.querySelector('.copy-note'));
+          questionsList.parentNode.insertBefore(note, document.querySelector('.copy-note') || null);
+          
+          // Save the questions to Chrome storage for persistence
+          chrome.storage.local.set({
+            extractedQuestions: response.questions,
+            plainTextQuestions: plainTextQuestions
+          }, function() {
+            console.log('Questions saved to Chrome storage');
+          });
           
           // Copy all questions to clipboard as plain text
           const allQuestionsText = plainTextQuestions.join('\n\n');
           copyToClipboard(allQuestionsText);
+        } else if (response && response.status === "error") {
+          showExtractionError(response.message || "提取问题失败");
         } else {
           showExtractionError("未找到问题。请确保您已运行了'Key Questions'提示并收到了包含10个问题的响应。");
         }

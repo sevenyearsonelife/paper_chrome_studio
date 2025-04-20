@@ -3,7 +3,7 @@
   "name": "AI Studio Helper",
   "version": "1.0",
   "description": "A chrome extension for Google AI Studio that provides paper analysis prompts.",
-  "permissions": ["activeTab", "scripting", "clipboardWrite", "tabs"],
+  "permissions": ["activeTab", "scripting", "clipboardWrite", "tabs", "storage"],
   "host_permissions": ["https://aistudio.google.com/*"],
   "action": {
     "default_popup": "popup.html",
