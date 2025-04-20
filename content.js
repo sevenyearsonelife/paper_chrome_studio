@@ -88,84 +88,156 @@ function extractQuestionsFromResponse() {
       throw new Error("未检测到Google AI Studio的输入框，请确保在正确的页面上");
     }
     
-    // Look for any ordered lists in the response
-    const orderedLists = document.querySelectorAll('ol');
-    console.log('Found ' + orderedLists.length + ' ordered lists');
+    // 简化的提取方法 - 直接查找页面上的所有有序列表
+    console.log("直接查找页面上的所有有序列表和编号文本");
     
-    if (orderedLists.length === 0) {
-      throw new Error("未找到包含问题的列表，请确保AI已经回答了包含10个问题的响应");
-    }
+    // ===== 方法1: 查找所有有序列表 =====
+    const allOrderedLists = document.querySelectorAll('ol');
+    console.log(`找到 ${allOrderedLists.length} 个有序列表`);
     
-    // Try to find the list that contains the 10 questions
-    let foundQuestionList = false;
+    let foundQuestions = false;
     
-    for (let i = 0; i < orderedLists.length; i++) {
-      const list = orderedLists[i];
+    // 处理找到的有序列表
+    for (let i = 0; i < allOrderedLists.length; i++) {
+      const list = allOrderedLists[i];
       const listItems = list.querySelectorAll('li');
-      console.log(`List ${i} has ${listItems.length} items`);
+      console.log(`列表 ${i} 有 ${listItems.length} 个项目`);
       
-      // If we found a list with at least 8-10 items, it's likely our question list
-      if (listItems.length >= 8) {
+      // 如果列表有足够多的项目，可能是我们要找的问题列表
+      if (listItems.length >= 5) {
+        const tempQuestions = [];
+        
         listItems.forEach((item, index) => {
-          if (index < 10) { // Limit to 10 questions
-            // Try to extract the title (usually in a <strong> tag)
+          if (index < 10) { // 限制为10个问题
+            // 尝试提取标题（通常在<strong>或<b>标签中）
             let questionTitle = '';
-            const strongElement = item.querySelector('strong');
+            const strongElement = item.querySelector('strong, b');
             
             if (strongElement) {
               questionTitle = strongElement.textContent.trim();
             }
             
-            // Get the full text content
+            // 获取完整的文本内容
             let fullQuestion = item.textContent.trim();
             
-            // Format the question with the number and title
+            // 使用数字和标题格式化问题
             if (questionTitle && fullQuestion.includes(questionTitle)) {
-              // Replace the title in the full text to avoid duplication
+              // 在完整文本中替换标题以避免重复
               const questionText = fullQuestion.substring(fullQuestion.indexOf(questionTitle) + questionTitle.length).trim();
-              questions.push(`<span class="question-number">${index + 1}.</span> <span class="question-title">${questionTitle}</span> ${questionText}`);
+              tempQuestions.push(`<span class="question-number">${index + 1}.</span> <span class="question-title">${questionTitle}</span> ${questionText}`);
             } else {
-              questions.push(`<span class="question-number">${index + 1}.</span> ${fullQuestion}`);
+              tempQuestions.push(`<span class="question-number">${index + 1}.</span> ${fullQuestion}`);
             }
           }
         });
         
-        // If we found questions, mark that we found the list and break the loop
-        if (questions.length > 0) {
-          foundQuestionList = true;
+        // 如果我们找到了问题，记录并跳出循环
+        if (tempQuestions.length >= 5) {
+          questions.push(...tempQuestions);
+          console.log(`从列表 ${i} 提取了 ${tempQuestions.length} 个问题`);
+          foundQuestions = true;
           break;
         }
       }
     }
     
-    // If we still don't have questions, try a more general approach
-    if (!foundQuestionList) {
-      console.log('Trying alternative question extraction method');
-      // Look for any list items that might contain questions
-      const allListItems = document.querySelectorAll('li');
+    // ===== 方法2: 查找所有可能包含问题的段落 =====
+    if (!foundQuestions) {
+      console.log("尝试从段落中提取问题");
+      const allParagraphs = document.querySelectorAll('p');
+      const numberedParagraphs = [];
       
-      if (allListItems.length === 0) {
-        throw new Error("页面上没有找到任何列表项，请确保AI已回复并显示了问题列表");
+      // 找出以数字开头的段落
+      for (let i = 0; i < allParagraphs.length; i++) {
+        const text = allParagraphs[i].textContent.trim();
+        if (/^\d+[\.\)、]/.test(text) && text.length > 10) {
+          numberedParagraphs.push(text);
+        }
       }
       
-      allListItems.forEach((item, index) => {
-        if (index < 10) { // Limit to 10 questions
-          const text = item.textContent.trim();
-          if (text.length > 0) {
-            questions.push(`<span class="question-number">${index + 1}.</span> ${text}`);
+      console.log(`找到 ${numberedParagraphs.length} 个编号段落`);
+      
+      // 如果有足够多的编号段落，很可能是我们要找的问题
+      if (numberedParagraphs.length >= 5) {
+        numberedParagraphs.forEach((text, index) => {
+          if (index < 10) { // 限制为10个问题
+            // 去掉开头的数字和标点
+            const cleanText = text.replace(/^\d+[\.\)、]\s*/, '');
+            questions.push(`<span class="question-number">${index + 1}.</span> ${cleanText}`);
           }
+        });
+        
+        foundQuestions = true;
+      }
+    }
+    
+    // ===== 方法3: 使用TreeWalker查找文本节点 =====
+    if (!foundQuestions) {
+      console.log("尝试使用TreeWalker查找编号文本");
+      const numberedTexts = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      
+      let node;
+      while (node = walker.nextNode()) {
+        const text = node.textContent.trim();
+        // 寻找以数字+标点开头的文本，长度至少为10个字符
+        if (/^\d+[\.\)、]/.test(text) && text.length > 10) {
+          numberedTexts.push(text);
         }
-      });
+      }
+      
+      console.log(`找到 ${numberedTexts.length} 个编号文本节点`);
+      
+      // 处理找到的编号文本
+      if (numberedTexts.length >= 5) {
+        // 对文本节点进行排序和去重
+        const uniqueTexts = [...new Set(numberedTexts)];
+        
+        uniqueTexts.forEach((text, index) => {
+          if (index < 10) { // 限制为10个问题
+            // 去掉开头的数字和标点
+            const cleanText = text.replace(/^\d+[\.\)、]\s*/, '');
+            questions.push(`<span class="question-number">${index + 1}.</span> ${cleanText}`);
+          }
+        });
+        
+        foundQuestions = true;
+      }
     }
     
+    // ===== 方法4: 查找嵌套在各种元素中的列表项 =====
+    if (!foundQuestions) {
+      console.log("尝试查找所有列表项");
+      const allListItems = document.querySelectorAll('li');
+      console.log(`找到 ${allListItems.length} 个列表项`);
+      
+      if (allListItems.length >= 5) {
+        allListItems.forEach((item, index) => {
+          if (index < 10) { // 限制为10个问题
+            const text = item.textContent.trim();
+            if (text.length > 10) {
+              questions.push(`<span class="question-number">${index + 1}.</span> ${text}`);
+            }
+          }
+        });
+        
+        if (questions.length >= 5) {
+          foundQuestions = true;
+        } else {
+          questions.length = 0; // 清空数组，因为这些可能不是问题
+        }
+      }
+    }
+    
+    // 如果仍然没有找到问题，抛出错误
     if (questions.length === 0) {
-      throw new Error("无法提取问题。请确保已经运行了Key Questions提示并收到了AI回复");
+      throw new Error("未找到问题列表。请确保AI已经回复了包含有序问题的响应。");
     }
     
-    console.log('Successfully extracted questions: ', questions.length);
+    console.log('成功提取问题: ', questions.length, '个');
     return questions;
   } catch (error) {
-    console.error('Error extracting questions:', error);
+    console.error('提取问题时出错:', error);
     throw error;
   }
-} 
+}
