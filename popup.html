@@ -10,15 +10,19 @@
     <h1>AI Studio Helper</h1>
     <div class="prompt-container">
       <h2>Paper Analysis</h2>
-      <div class="prompt-text">
-        首先给出论文标题与链接，按照 > 格式，然后对论文进行详细分析，并在分析报告中包括以下关键方面： 研究背景与动机：请描述该论文主要解决的问题是什么，明确指出研究的背景、研究动机以及研究问题的具体表述。 论文核心方法和步骤：详细阐述论文中提出的核心方法和步骤，包括任何创新的技术、理论模型或实验设计，以及如何实施这些方法以解决问题，需要结合公式进行说明。 实验结果与结论：总结论文的实验结果和结论，讨论作者如何解释他们的发现以及这些发现对相关领域的意义。请以逻辑清晰、条理化的方式组织你的分析，确保对每一要点进行充分讨论。格式要求：## 研究背景与动机 ## 论文核心方法和步骤 ## 实验结果与结论，不要有二级以外的其他级标题，其余标题采用加粗，公式要用latex。
+      <div class="formatted-prompts">
+        <div class="formatted-question">
+          <span class="question-content">首先给出论文标题与链接，按照 > 格式，然后对论文进行详细分析，并在分析报告中包括以下关键方面： 研究背景与动机：请描述该论文主要解决的问题是什么，明确指出研究的背景、研究动机以及研究问题的具体表述。 论文核心方法和步骤：详细阐述论文中提出的核心方法和步骤，包括任何创新的技术、理论模型或实验设计，以及如何实施这些方法以解决问题，需要结合公式进行说明。 实验结果与结论：总结论文的实验结果和结论，讨论作者如何解释他们的发现以及这些发现对相关领域的意义。请以逻辑清晰、条理化的方式组织你的分析，确保对每一要点进行充分讨论。格式要求：## 研究背景与动机 ## 论文核心方法和步骤 ## 实验结果与结论，不要有二级以外的其他级标题，其余标题采用加粗，公式要用latex。</span>
+        </div>
       </div>
       <button class="prompt-button" id="paperAnalysisBtn">Use This Prompt</button>
     </div>
     <div class="prompt-container">
       <h2>Key Questions</h2>
-      <div class="prompt-text">
-        我正在使用AI辅助阅读这篇学术论文。为了帮助我更深入地理解论文的核心思想、方法和贡献，请列举出10个最关键的问题，这些问题应当能引导我全面把握论文的内容和意义。
+      <div class="formatted-prompts">
+        <div class="formatted-question">
+          <span class="question-content">我正在使用AI辅助阅读这篇学术论文。为了帮助我更深入地理解论文的核心思想、方法和贡献，请列举出10个最关键的问题，这些问题应当能引导我全面把握论文的内容和意义。</span>
+        </div>
       </div>
       <button class="prompt-button" id="keyQuestionsBtn">Use This Prompt</button>
     </div>

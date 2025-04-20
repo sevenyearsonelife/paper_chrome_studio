@@ -81,6 +81,70 @@ h3 {
   white-space: pre-wrap;
 }
 
+.formatted-prompts {
+  margin-top: 10px;
+  margin-bottom: 15px;
+}
+
+.formatted-question {
+  position: relative;
+  padding-left: 15px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.formatted-question::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #4CAF50;
+  border-radius: 2px;
+}
+
+.clickable-question {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 5px 10px 5px 15px;
+  border-radius: 4px;
+}
+
+.clickable-question:hover {
+  background-color: #f0f7ff;
+}
+
+.clickable-question:active {
+  background-color: #e3f2fd;
+}
+
+.clickable-note {
+  font-size: 12px;
+  color: #1a73e8;
+  text-align: center;
+  margin: 10px 0 5px 0;
+  font-style: italic;
+}
+
+.question-number {
+  font-weight: bold;
+  margin-right: 5px;
+  color: #333;
+  display: inline-block;
+  min-width: 25px;
+}
+
+.question-title {
+  font-weight: bold;
+  margin-right: 5px;
+  color: #333;
+}
+
+.question-content {
+  display: inline;
+}
+
 .prompt-button {
   background-color: #1a73e8;
   color: white;
@@ -114,14 +178,28 @@ h3 {
 
 #questionsList {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 0;
+  list-style-type: none;
 }
 
 #questionsList li {
   font-size: 13px;
   line-height: 1.4;
-  margin-bottom: 8px;
+  margin-bottom: 15px;
   color: #333;
+  position: relative;
+  padding-left: 15px;
+}
+
+#questionsList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #4CAF50;
+  border-radius: 2px;
 }
 
 .copy-note {

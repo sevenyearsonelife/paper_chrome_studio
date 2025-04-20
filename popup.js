@@ -7,12 +7,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add click event listeners to the buttons
   document.getElementById('paperAnalysisBtn').addEventListener('click', function() {
     copyToClipboard(paperAnalysisPrompt);
-    sendPromptToTab(paperAnalysisPrompt);
+    ensureContentScriptLoaded().then(() => {
+      sendPromptToTab(paperAnalysisPrompt);
+    }).catch(error => {
+      alert(`无法连接到 Google AI Studio: ${error.message}`);
+    });
   });
 
   document.getElementById('keyQuestionsBtn').addEventListener('click', function() {
     copyToClipboard(keyQuestionsPrompt);
-    sendPromptToTab(keyQuestionsPrompt);
+    ensureContentScriptLoaded().then(() => {
+      sendPromptToTab(keyQuestionsPrompt);
+    }).catch(error => {
+      alert(`无法连接到 Google AI Studio: ${error.message}`);
+    });
   });
   
   // Add click event listener for the Extract Questions button
@@ -20,60 +28,125 @@ document.addEventListener('DOMContentLoaded', function() {
     extractQuestions();
   });
 
+  // Function to ensure content script is loaded before proceeding
+  function ensureContentScriptLoaded() {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs || tabs.length === 0) {
+          reject(new Error("无法访问当前标签页"));
+          return;
+        }
+        
+        const currentTab = tabs[0];
+        
+        // Check if the current tab is a Google AI Studio page
+        if (!currentTab.url.includes('aistudio.google.com')) {
+          reject(new Error("请在 Google AI Studio 页面上使用此扩展"));
+          return;
+        }
+
+        // Try to ping the content script first to check if it's loaded
+        chrome.tabs.sendMessage(currentTab.id, {action: "ping"}, function(response) {
+          // If we get a response, the content script is already loaded
+          if (response && response.status === "ok") {
+            resolve(currentTab);
+            return;
+          }
+          
+          // If no response or error, inject the content script programmatically
+          if (chrome.runtime.lastError) {
+            console.log("Content script not yet loaded, injecting:", chrome.runtime.lastError);
+            
+            // Inject the content script
+            chrome.scripting.executeScript({
+              target: {tabId: currentTab.id},
+              files: ["content.js"]
+            }).then(() => {
+              console.log("Content script injected successfully");
+              // Give it a moment to initialize
+              setTimeout(() => resolve(currentTab), 200);
+            }).catch(error => {
+              console.error("Failed to inject content script:", error);
+              reject(new Error("无法注入所需脚本"));
+            });
+          }
+        });
+      });
+    });
+  }
+
   // Function to extract questions from the AI Studio response
   function extractQuestions() {
     // Show extraction status
     const questionsList = document.getElementById('questionsList');
-    questionsList.innerHTML = '<li>正在提取问题，请稍候...</li>';
+    questionsList.innerHTML = '<li><span class="question-content">正在提取问题，请稍候...</span></li>';
     document.getElementById('extractedQuestions').style.display = 'block';
     
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs || tabs.length === 0) {
-        showExtractionError("无法访问当前标签页");
-        return;
-      }
-      
-      try {
-        chrome.tabs.sendMessage(tabs[0].id, {action: "extractQuestions"}, function(response) {
-          // Check for error from Chrome runtime
-          if (chrome.runtime.lastError) {
-            console.error("Chrome runtime error:", chrome.runtime.lastError);
-            showExtractionError("通信错误: " + chrome.runtime.lastError.message);
-            return;
-          }
+    // First ensure the content script is loaded
+    ensureContentScriptLoaded().then(tab => {
+      // Now try to extract questions
+      chrome.tabs.sendMessage(tab.id, {action: "extractQuestions"}, function(response) {
+        // Check for error from Chrome runtime
+        if (chrome.runtime.lastError) {
+          console.error("Chrome runtime error:", chrome.runtime.lastError);
+          showExtractionError("通信错误: " + chrome.runtime.lastError.message);
+          return;
+        }
+        
+        // Check for valid response
+        if (response && response.questions && response.questions.length > 0) {
+          // Display the extracted questions
+          questionsList.innerHTML = ''; // Clear previous questions
           
-          // Check for valid response
-          if (response && response.questions && response.questions.length > 0) {
-            // Display the extracted questions
-            questionsList.innerHTML = ''; // Clear previous questions
+          // Store the plain text questions for use with click events
+          const plainTextQuestions = [];
+          
+          response.questions.forEach((question, index) => {
+            // Create the list item for the question
+            const li = document.createElement('li');
+            li.innerHTML = question;
+            li.className = 'formatted-question clickable-question';
+            questionsList.appendChild(li);
             
-            response.questions.forEach(question => {
-              const li = document.createElement('li');
-              li.innerHTML = question;
-              questionsList.appendChild(li);
+            // Extract plain text for this question (without HTML tags)
+            const plainText = question.replace(/<[^>]*>/g, '');
+            plainTextQuestions.push(plainText);
+            
+            // Add click event to send this question to the AI Studio
+            li.addEventListener('click', function() {
+              const questionToSend = `${plainText}`;
+              copyToClipboard(questionToSend);
+              
+              ensureContentScriptLoaded().then(tab => {
+                sendPromptToTab(questionToSend);
+              }).catch(error => {
+                alert(`无法连接到 Google AI Studio: ${error.message}`);
+              });
             });
-            
-            // Copy all questions to clipboard as plain text
-            const plainTextQuestions = response.questions.map((q, index) => 
-              `${index + 1}. ${q.replace(/<\/?b>/g, '')}`
-            ).join('\n\n');
-            
-            copyToClipboard(plainTextQuestions);
-          } else {
-            showExtractionError("未找到问题。请确保您已运行了'Key Questions'提示并收到了包含10个问题的响应。");
-          }
-        });
-      } catch (error) {
-        console.error("Error sending message:", error);
-        showExtractionError("发送消息时出错: " + error.message);
-      }
+          });
+          
+          // Add a note that questions are clickable
+          const note = document.createElement('p');
+          note.className = 'clickable-note';
+          note.textContent = '点击任意问题可将其发送到AI Studio';
+          questionsList.parentNode.insertBefore(note, document.querySelector('.copy-note'));
+          
+          // Copy all questions to clipboard as plain text
+          const allQuestionsText = plainTextQuestions.join('\n\n');
+          copyToClipboard(allQuestionsText);
+        } else {
+          showExtractionError("未找到问题。请确保您已运行了'Key Questions'提示并收到了包含10个问题的响应。");
+        }
+      });
+    }).catch(error => {
+      showExtractionError(`连接错误: ${error.message}`);
     });
   }
   
   // Function to show extraction error
   function showExtractionError(message) {
     const questionsList = document.getElementById('questionsList');
-    questionsList.innerHTML = `<li style="color: red;">${message}</li>`;
+    questionsList.innerHTML = `<li class="formatted-question" style="color: red;"><span class="question-content">${message}</span></li>`;
     document.getElementById('extractedQuestions').style.display = 'block';
   }
 
@@ -92,8 +165,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to send the prompt to the active tab
   function sendPromptToTab(promptText) {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: "insertPrompt", text: promptText});
-      window.close(); // Close the popup after sending the prompt
+      if (!tabs || tabs.length === 0) return;
+      
+      chrome.tabs.sendMessage(tabs[0].id, {action: "insertPrompt", text: promptText}, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error("Error sending prompt:", chrome.runtime.lastError);
+        }
+        window.close(); // Close the popup after sending the prompt
+      });
     });
   }
 }); 
